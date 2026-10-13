@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Force Plate — built by hand</title>
+<meta name="description" content="A four-corner force plate made from angle aluminum, 3D-printed brackets and twelve load cells.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Courier+Prime&family=Inter:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#ebe5d6; --ink:#5fa8cc; --ink-deep:#2f6f8f; --text:#2a3238; --muted:#6c6a63;
+  --hand:'Caveat',cursive; --mono:'Courier Prime',ui-monospace,monospace; --sans:'Inter',-apple-system,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:auto}
+/* magnetic step-to-step scrolling; switched on by JS only once the hero is behind you */
+html.snap{scroll-snap-type:y proximity}   /* gentle: the wheel magnet is in JS; mandatory would yank jumps and scrollbar drags back */
+body{margin:0;overflow-x:clip;background:var(--paper);color:var(--text);font-family:var(--mono);-webkit-font-smoothing:antialiased}
+.grain{background-image:var(--grain);background-size:256px}
+
+/* ── Hero: scroll-scrubbed exploded view ── */
+#hero{height:440vh;position:relative}
+#hero .end{position:absolute;bottom:0;height:100vh;width:1px;scroll-snap-align:start}
+#hero .stage{position:sticky;top:0;height:100vh;overflow:hidden;background:#efeae0}
+#hero .paper{position:absolute;inset:0;opacity:0}
+#frames{position:absolute;inset:0;width:100%;height:100%}
+#hero .fig{position:absolute}
+.title{position:absolute;left:0;right:0;text-align:center;pointer-events:none;font-family:var(--sans);color:#1d2328}
+.title h1{font-size:clamp(44px,8vw,104px);font-weight:800;letter-spacing:-.04em;margin:0;line-height:1}
+.title p{font-size:clamp(17px,2vw,24px);font-weight:500;margin:.6em 0 0;color:#5b6168}
+#t1{top:9vh}
+#t2{bottom:8vh;opacity:0}
+#t2 p{font-size:clamp(20px,2.6vw,32px);color:#1d2328;font-weight:700;letter-spacing:-.02em;margin:0}
+#t3{top:6vh;opacity:0;font-family:var(--hand);color:var(--ink-deep)}
+#t3 p{font-family:var(--hand);font-size:clamp(28px,3.4vw,44px);color:var(--ink-deep);font-weight:600}
+.cue{position:absolute;bottom:4vh;left:50%;width:46px;height:46px;margin-left:-23px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.55);border:1px solid rgba(0,0,0,.06);box-shadow:0 4px 14px rgba(0,0,0,.08);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);animation:nudge 3.2s ease-in-out infinite}
+.cue svg{width:16px;height:16px;overflow:visible}
+.cue path{fill:none;stroke:#5b6168;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* sits still, then a quick double bounce every few seconds */
+@keyframes nudge{0%,72%,100%{transform:translateY(0)}78%{transform:translateY(9px)}84%{transform:translateY(1px)}89%{transform:translateY(6px)}94%{transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){.cue{animation:none}}
+
+/* ── Sketchbook pages ── */
+#steps{position:relative}
+.intro{min-height:44vh;display:grid;place-content:center;text-align:center;padding:8vh 16px 2vh;scroll-snap-align:start}
+.intro h2{font-family:var(--hand);font-weight:600;font-size:clamp(48px,7vw,88px);color:var(--ink-deep);margin:0;line-height:1}
+.intro p{max-width:34em;margin:1em auto 0;line-height:1.6;color:var(--muted)}
+.step{display:grid;grid-template-columns:minmax(220px,1fr) 2.4fr;gap:3vw;align-items:center;padding:1vh 5vw;max-width:1500px;margin:0 auto;scroll-snap-align:center}
+.step .num{font-family:var(--hand);font-size:clamp(56px,7vw,96px);color:var(--ink);line-height:.8;font-weight:600}
+.step h3{font-family:var(--hand);font-weight:600;font-size:clamp(34px,3.6vw,52px);margin:.2em 0 .3em;color:var(--ink-deep);line-height:1}
+.step p{line-height:1.65;font-size:15px;margin:0;color:var(--text);max-width:28em}
+.step .tools{margin-top:1.2em;font-size:13px;color:var(--muted)}
+.fig{position:relative;width:100%;aspect-ratio:16/9;touch-action:manipulation;overflow:hidden}
+.fig canvas{position:absolute;pointer-events:none}
+.fig canvas.part.wiggle{animation:wiggle .45s ease-in-out}
+@keyframes wiggle{0%,100%{transform:rotate(0)}20%{transform:rotate(-2.2deg) translateY(-2px)}45%{transform:rotate(1.8deg)}70%{transform:rotate(-.9deg)}}
+@media (prefers-reduced-motion:reduce){.fig canvas.part.wiggle{animation:none}}
+
+/* ── Video ── */
+#video{display:grid;place-content:center;padding:14vh 5vw 8vh;text-align:center}
+#video h2{font-family:var(--hand);font-weight:600;font-size:clamp(48px,6vw,80px);color:var(--ink-deep);margin:0}
+#video p{color:var(--muted);margin:.4em 0 2em}
+.frame{width:min(1000px,90vw,calc(78vh * 4 / 3));aspect-ratio:4/3;margin:0 auto;position:relative;border:2px solid var(--ink);border-radius:6px;box-shadow:4px 5px 0 rgba(95,168,204,.35);overflow:hidden;background:rgba(255,255,255,.25)}
+.frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.frame .empty{position:absolute;inset:0;display:grid;place-content:center;font-family:var(--hand);font-size:34px;color:var(--ink)}
+footer{text-align:center;padding:6vh 16px 8vh;font-size:13px;color:var(--muted)}
+footer a{color:inherit}
+
+/* ── Top bar ── */
+.nav{position:fixed;top:0;left:0;right:0;z-index:10;height:48px;display:flex;align-items:center;gap:20px;padding:0 max(16px,4vw);
+  background:rgba(239,234,224,.72);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);border-bottom:1px solid rgba(0,0,0,.06);font-family:var(--sans);font-size:13px}
+.nav a{color:#4b5157;text-decoration:none;white-space:nowrap}
+.nav .brand{font-weight:700;color:#1d2328;margin-right:auto}
+.nav .links{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none}
+.nav .links a.on{color:var(--ink-deep);box-shadow:inset 0 -2px 0 var(--ink)}
+.nav a:hover{color:#1d2328}
+.nav a:focus-visible{outline:2px solid var(--ink-deep);outline-offset:3px}
+@media (max-width:560px){.nav .brand{display:none}.nav .links{gap:14px}}
+
+/* ── Content sections below the steps scroll normally ── */
+.sec{max-width:1100px;margin:0 auto;padding:10vh 5vw 4vh}
+.sec h2{font-family:var(--hand);font-weight:600;font-size:clamp(44px,5.5vw,72px);color:var(--ink-deep);margin:0;line-height:1}
+.sec .lede{color:var(--muted);margin:.5em 0 2em;line-height:1.6;max-width:40em}
+.card{border:1.5px solid var(--ink);border-radius:6px;box-shadow:3px 4px 0 rgba(95,168,204,.3);background:rgba(255,255,255,.22);padding:18px 20px}
+.btn{font:inherit;font-size:13px;color:var(--ink-deep);background:transparent;border:1.5px solid var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn[aria-pressed="true"]{background:var(--ink);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible{outline:2px solid var(--ink-deep);outline-offset:2px}
+/* try it */
+.demo{display:grid;grid-template-columns:2.6fr 1fr;gap:24px;align-items:start}
+#demo{width:100%;display:block;touch-action:none;cursor:grab}
+#demo.dragging{cursor:grabbing}
+.controls{display:flex;flex-direction:column;gap:14px;font-size:14px}
+.controls .row{display:flex;flex-wrap:wrap;gap:8px}
+.controls label{display:flex;flex-direction:column;gap:6px}
+.controls input[type=range]{accent-color:var(--ink-deep);width:100%}
+.readout{font-size:13px;line-height:1.7;color:var(--text)}
+.note{font-size:12px;color:var(--muted);line-height:1.5}
+/* papers */
+.papers{display:grid;gap:16px}
+.paper h3{font-family:var(--hand);font-size:30px;font-weight:600;color:var(--ink-deep);margin:0 0 4px}
+#papers h2{margin-bottom:.6em}
+.paper .meta{font-size:13px;color:var(--muted);margin-bottom:12px}
+.chip{display:inline-block;font-size:12px;border:1px solid var(--ink);color:var(--ink-deep);border-radius:4px;padding:1px 8px;margin-right:8px}
+.paper pre{white-space:pre-wrap;font-size:12px;background:rgba(255,255,255,.4);border-radius:4px;padding:12px;margin:12px 0 0}
+/* code */
+.files{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.files a{color:inherit;text-decoration:none}
+.files h3{font-family:var(--hand);font-size:30px;font-weight:600;color:var(--ink-deep);margin:0 0 6px}
+.files p{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
+.files a:hover .card{transform:translateY(-2px)}
+.files .card{transition:transform .15s;height:100%}
+@media (max-width:820px){.demo{grid-template-columns:1fr}}
+
+@media (max-width:820px){
+  .step{grid-template-columns:1fr;padding:3vh 16px}
+  #hero{height:360vh}
+}
+</style>
+</head>
+<body class="grain">
+<nav class="nav" aria-label="Sections">
+  <a class="brand" href="#hero">Force Plate</a>
+  <div class="links">
+    <a href="#steps">How it's made</a><a href="#video">See it work</a><a href="#try">Try it</a><a href="#papers">Publications</a><a href="#code">Code</a>
+  </div>
+</nav>
+
+<section id="hero">
+  <div class="end"></div>
+  <div class="stage">
+    <div class="paper grain"></div>
+    <canvas id="frames"></canvas>
+    <div class="fig" id="heroSketch"></div>
+    <div class="title" id="t1"><h1>Force Plate.</h1><p>Built by hand. Measures every push.</p></div>
+    <div class="title" id="t2"><p>Twelve load cells. Four corners. One plate.</p></div>
+    <div class="title" id="t3"><p>Here's how it comes together.</p></div>
+    <div class="cue" id="cue" aria-label="Scroll down"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3.5l5 4 5-4M3 8.5l5 4 5-4"/></svg></div>
+  </div>
+</section>
+
+<section id="steps">
+  <div class="intro">
+    <h2>How it's made</h2>
+    <p>Angle aluminum, a hacksaw, a drill and a 3D printer. Ten steps from raw stock to a working plate.</p>
+  </div>
+</section>
+
+<section id="video">
+  <h2>See it work</h2>
+  <p>Push the plate, see the force: the iPad app in action.</p>
+  <div class="frame" id="player"><div class="empty">video coming soon</div></div>
+</section>
+
+<section class="sec" id="try">
+  <h2>Try it</h2>
+  <p class="lede">Push on the plate. Drag to move where you press, switch to <em>Tilt</em> to lean the push sideways, and see how the four corners share the load.</p>
+  <div class="demo">
+    <canvas id="demo" aria-label="Interactive force plate: drag to apply a force"></canvas>
+    <div class="controls">
+      <div class="row" role="group" aria-label="Drag mode">
+        <button class="btn" data-mode="move" aria-pressed="true">Move point</button>
+        <button class="btn" data-mode="tilt" aria-pressed="false">Tilt force</button>
+      </div>
+      <label>Push: <span id="wval">400 N</span><input type="range" id="w" min="50" max="800" step="10" value="400"></label>
+      <div class="row">
+        <button class="btn" data-show="reactions" aria-pressed="true">Reactions</button>
+        <button class="btn" data-show="components" aria-pressed="false">Components</button>
+        <button class="btn" data-show="cop" aria-pressed="false">Center of pressure</button>
+      </div>
+      <div class="row"><button class="btn" id="reset">Reset</button></div>
+      <div class="readout" id="readout"></div>
+      <p class="note">Idealized model: a rigid plate on four identical supports. Good for intuition, not for calibration.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="papers">
+  <h2>Publications</h2>
+  <div class="papers" id="paperList"></div>
+</section>
+
+<section class="sec" id="code">
+  <h2>Code &amp; files</h2>
+  <p class="lede">Everything needed to build your own is open source (AGPL-3.0).</p>
+  <div class="files">
+    <a href="https://github.com/human-systems-ise-ncsu/ForceAR/tree/main/ForceAR_Arduino_Firmware"><div class="card"><h3>Firmware</h3><p>Arduino code that reads the twelve HX711 amplifiers and streams the forces.</p></div></a>
+    <a href="https://github.com/human-systems-ise-ncsu/ForceAR/tree/main/CAD_and_STL"><div class="card"><h3>CAD &amp; STL</h3><p>Models of the brackets and mounts, ready to print.</p></div></a>
+    <a href="https://github.com/human-systems-ise-ncsu/ForceAR"><div class="card"><h3>Repository</h3><p>The full project on GitHub.</p></div></a>
+  </div>
+</section>
+
+<footer>Force Plate · <a href="https://github.com/human-systems-ise-ncsu">Human-Systems</a>, <a href="https://www.ise.ncsu.edu/">Industrial and Systems Engineering</a>, NC State · AGPL-3.0</footer>
+
+<script>
+// Paste the YouTube video ID here (the part after "watch?v=").
+const YOUTUBE_ID = 'cr91yQEVEDs';
+
+const STEPS = [
+  {id:'mark', title:'Mark the cut', text:'Measure along the angle aluminum and draw a square line where the short piece comes off. Two lengths are needed: 12.7 mm and 34.8 mm.',
+   tools:'angle aluminum · steel rule · marker', labels:{stock_long:'38 × 38 mm angle', ruler:'steel rule', pencil:'marker', mark:'cut line'}},
+  {id:'saw', title:'Saw it off', text:'Long, even strokes right on the line. Let the blade do the work and finish slowly so the piece doesn\'t tear off.',
+   tools:'hacksaw', labels:{hacksaw:'hacksaw', stock_long:'stock', mark:'cut line'}},
+  {id:'trim', title:'Shape the odd bracket', text:'One flange is trimmed down to 16 mm; the other gets a 32° angled cut. Same saw, two more cuts.',
+   tools:'hacksaw · file', labels:{part2_notch:'angled bracket', offcut:'offcuts'}},
+  {id:'drill', title:'Drill the holes', text:'Two 4 mm holes per face, 9.5 mm apart. Start with the pointed bit right on the mark so it doesn\'t wander.',
+   tools:'drill · pointed bit', labels:{drill:'drill + pointed bit', part2_notch:'bracket'}},
+  {id:'print', title:'Print the brackets', text:'The bottom mount and the top loading cap are printed in PLA, two of each per batch.',
+   tools:'3D printer · PLA', labels:{'Face_mount2:1':'loading cap', 'Face_loading2:1':'bottom mount', printhead:'nozzle'}},
+  {id:'assemble', title:'Build one corner', text:'Each corner stacks a PLA mount, three load cells, two aluminum brackets and a loading cap.',
+   tools:'screwdriver · M4 screws', labels:{Face_mount2:'PLA mount', '01_LoadCell':'load cells ×3', Alu_linkage_Part1:'L bracket', Alu_linkage_Part2:'angled bracket', Face_loading2:'loading cap'}},
+  {id:'mount', title:'Four corners on the base', text:'Make three more identical corners, set them on the 12 × 12 in base and screw them down.',
+   tools:'screwdriver', labels:{'Wooden base':'base board', 'Unit 4':'corner unit'}},
+  {id:'solder', title:'Solder the amplifiers', text:'Every load cell gets its own HX711 amplifier. Tin the pads first, then solder the leads.',
+   tools:'soldering iron · solder', labels:{HX711:'HX711 board', iron:'soldering iron', wires:'solder'}},
+  {id:'wire', title:'Wire it up', text:'Run each corner\'s wires to the controller in the middle. Short, tidy runs are easier to debug.',
+   tools:'wire · heat shrink', labels:{Controller:'controller', HX711:'HX711 ×12', wires:'signal wires'}},
+  {id:'plate', title:'Close the lid', text:'The top plate is held on by magnets, so it lifts straight off whenever you need to get inside.',
+   tools:'magnets · hot glue', labels:{'Magnetic top plate':'magnetic top plate', 'Wooden base':'base'}},
+];
+const HERO_LABELS = {plate:'magnetic top plate', base:'base board', '01_LoadCell@Unit 2':'load cells', 'Face_mount2@Unit 3':'PLA mount', 'Alu_linkage_Part1@Unit 1':'aluminum bracket'};
+const FRAME_COUNT = 72, FRAME_W = 1600, FRAME_H = 1000;
+const INK = '95,168,204';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ── Paper grain tile (after the colour picker reference) ── */
+(() => {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+  for (let i = 0; i < 2600; i++) {
+    const d = Math.random() < .55;
+    x.fillStyle = d ? `rgba(90,80,60,${.03 + Math.random() * .08})` : `rgba(255,255,252,${.1 + Math.random() * .25})`;
+    x.fillRect(Math.random() * 256, Math.random() * 256, .5 + Math.random(), .5 + Math.random());
+  }
+  for (let i = 0; i < 40; i++) {
+    x.strokeStyle = 'rgba(110,100,80,.06)'; x.lineWidth = .6; x.beginPath();
+    const a = Math.random() * 256, b = Math.random() * 256; x.moveTo(a, b); x.lineTo(a + (Math.random() - .5) * 28, b + (Math.random() - .5) * 28); x.stroke();
+  }
+  document.documentElement.style.setProperty('--grain', `url(${c.toDataURL()})`);
+})();
+
+/* ── Pencil drawing: every line traced 2–3 times, wobbling, overshooting its ends ── */
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+function pencil(pts, k, passes, alpha, width, R) {
+  const out = [], r = (a, b) => a + R() * (b - a);
+  const [x0, y0] = pts[0], [x1, y1] = pts[1] || pts[0], [xn, yn] = pts[pts.length - 1], [xm, ym] = pts[pts.length - 2] || pts[0];
+  const s = Math.hypot(x1 - x0, y1 - y0) || 1, e = Math.hypot(xn - xm, yn - ym) || 1;
+  for (let p = 0; p < passes; p++) {
+    const os = r(0, 4), oe = r(1, 7), amp = 1.3 / k, o1 = r(-amp, amp), o2 = r(-amp, amp), ph = r(0, 6);
+    const q = [[x0 - (x1 - x0) / s * os, y0 - (y1 - y0) / s * os], ...pts, [xn + (xn - xm) / e * oe, yn + (yn - ym) / e * oe]];
+    out.push({a: alpha * r(.75, 1), w: width * r(.8, 1.2), p: q.map(([x, y], i) => {
+      const t = i / (q.length - 1);
+      return [x + o1 * (1 - t) + o2 * t + Math.sin(t * 6 + ph) * amp * .4, y + o2 * (1 - t) + o1 * t + Math.cos(t * 5 + ph) * amp * .4];
+    })});
+  }
+  return out;
+}
+
+class Sketch {
+  constructor(el, data, labels, seed) {
+    this.el = el; this.data = data; this.labels = labels || {}; this.seed = seed; this.drawn = false;
+    this.groups = Object.entries(data.groups).map(([name, lines]) => {
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, sx = 0, sy = 0, n = 0; const pts = [];
+      for (const l of lines) for (const [x, y] of l) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); sx += x; sy += y; n++; pts.push([x, y]); }
+      return {name, lines, pts, box: [x0 - 16, y0 - 16, x1 + 16, y1 + 16], c: [sx / n, sy / n]};
+    });
+    el.addEventListener('pointermove', e => this.hover(e));
+    el.addEventListener('pointerleave', () => this.hot = null);
+  }
+  layout() {
+    const k = this.el.clientWidth / this.data.w, dpr = Math.min(2, devicePixelRatio || 1);
+    if (!k) return; this.k = k; this.el.querySelectorAll('canvas').forEach(c => c.remove());
+    const mk = (box, cls) => {
+      const c = document.createElement('canvas'), [x0, y0, x1, y1] = box;
+      Object.assign(c.style, {left: x0 * k + 'px', top: y0 * k + 'px', width: (x1 - x0) * k + 'px', height: (y1 - y0) * k + 'px'});
+      c.width = Math.ceil((x1 - x0) * k * dpr); c.height = Math.ceil((y1 - y0) * k * dpr); c.className = cls || '';
+      const x = c.getContext('2d'); x.setTransform(dpr * k, 0, 0, dpr * k, -x0 * k * dpr, -y0 * k * dpr); x.lineCap = x.lineJoin = 'round';
+      this.el.appendChild(c); return x;
+    };
+    this.base = mk([0, 0, this.data.w, this.data.h]);
+    for (const g of this.groups) {
+      g.ctx = mk(g.box, 'part'); g.canvas = g.ctx.canvas;
+      g.canvas.style.transformOrigin = `${(g.c[0] - g.box[0]) * k}px ${(g.c[1] - g.box[1]) * k}px`;
+    }
+    if (this.drawn) this.draw(true);
+  }
+  strokes() {
+    const R = rng(this.seed), k = this.k, ops = [], {w, h} = this.data;
+    // faint construction lines framing the figure
+    const all = this.groups.flatMap(g => g.pts); if (!all.length) return ops;
+    const ys = all.map(p => p[1]), xs = all.map(p => p[0]), cx = (Math.min(...xs) + Math.max(...xs)) / 2, by = Math.max(...ys) + 10;
+    for (const l of [[[w * .04, by], [w * .96, by]], [[cx, h * .05], [cx, h * .95]], [[w * .06, Math.min(...ys) - 6], [w * .5, Math.min(...ys) - 6]]])
+      ops.push(...pencil(l, k, 1, .16, .7, R).map(s => ({...s, ctx: this.base})));
+    for (const g of this.groups) for (const l of g.lines) ops.push(...pencil(l, k, 2 + (R() < .3), .7, 1.15, R).map(s => ({...s, ctx: g.ctx})));
+    for (const l of this.data.hatch || []) ops.push(...pencil(l, k, 1, .28, .75, R).map(s => ({...s, ctx: this.base})));
+    return ops;
+  }
+  draw(instant) {
+    this.drawn = true; if (!this.k) this.layout();
+    const ops = this.strokes(); let i = 0, j = 1, done = 0;
+    const total = ops.reduce((s, o) => s + o.p.length - 1, 0), t0 = performance.now(), DURATION = 1200;   // time-based: same 1.2 s at any frame rate
+    const notes = () => this.notes();
+    const frame = () => {
+      let budget = instant || reduced ? 1e9 : Math.ceil(total * Math.min(1, (performance.now() - t0) / DURATION)) - done;
+      done += Math.max(0, budget);
+      while (budget > 0 && i < ops.length) {
+        const s = ops[i], x = s.ctx, a = s.p[j - 1], b = s.p[j];
+        x.strokeStyle = `rgba(${INK},${s.a})`; x.lineWidth = s.w / this.k; x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke();
+        budget--; if (++j >= s.p.length) { i++; j = 1; }
+      }
+      if (i < ops.length) requestAnimationFrame(frame); else { notes(); this.complete = true; this.onComplete && this.onComplete(); }
+    };
+    frame();
+  }
+  notes() {
+    const x = this.base, k = this.k, R = rng(this.seed + 7), {w, h} = this.data;
+    const all = this.groups.flatMap(g => g.pts), xs = all.map(p => p[0]), fx0 = Math.min(...xs), fx1 = Math.max(...xs), mx = (fx0 + fx1) / 2;
+    x.font = `600 ${Math.min(48, 30 / k)}px Caveat, cursive`; const placed = [];
+    for (const g of this.groups) {
+      const text = this.labels[g.name]; if (!text) continue;
+      // anchor on the drawn line nearest the group's centre; the note sits in the gutter beside the figure
+      const a = g.pts.reduce((b, p) => Math.hypot(p[0] - g.c[0], p[1] - g.c[1]) < Math.hypot(b[0] - g.c[0], b[1] - g.c[1]) ? p : b);
+      const left = a[0] < mx, dx = left ? -1 : 1, lx = left ? Math.max(30, fx0 - 50) : Math.min(w - 30, fx1 + 50);
+      let ly = Math.max(40, Math.min(h - 30, a[1] + (R() - .5) * 40));
+      while (placed.some(([px, py]) => px === lx && Math.abs(py - ly) < 44)) ly += 46;   // keep notes apart
+      placed.push([lx, ly]);
+      for (const s of pencil([a, [lx - dx * 6, ly]], k, 1, .45, .8, R)) { x.strokeStyle = `rgba(${INK},${s.a})`; x.lineWidth = s.w / k; x.beginPath(); s.p.forEach((p, i) => i ? x.lineTo(...p) : x.moveTo(...p)); x.stroke(); }
+      x.fillStyle = `rgba(${INK},.95)`; x.textAlign = left ? 'right' : 'left'; x.textBaseline = 'middle';
+      const tw = x.measureText(text).width;
+      x.fillText(text, left ? Math.max(tw + 8, lx) : Math.min(w - tw - 8, lx), ly);
+    }
+    x.fillStyle = `rgba(${INK},.55)`; x.textAlign = 'right'; x.font = `${20 / k > 32 ? 32 : 20 / k}px Caveat, cursive`;
+    if (this.fig) x.fillText(this.fig, w - 24, h - 20);
+  }
+  clear() { this.drawn = this.complete = false; this.el.querySelectorAll('canvas').forEach(c => c.getContext('2d').clearRect(-1e5, -1e5, 2e5, 2e5)); }
+  hover(e) {
+    if (!this.k || !this.drawn) return;
+    const r = this.el.getBoundingClientRect(), px = (e.clientX - r.left) / this.k, py = (e.clientY - r.top) / this.k, tol = 18 / this.k;
+    let best = null, bd = tol;
+    for (const g of this.groups) {
+      const [x0, y0, x1, y1] = g.box; if (px < x0 || px > x1 || py < y0 || py > y1) continue;
+      for (const [x, y] of g.pts) { const d = Math.hypot(x - px, y - py); if (d < bd) { bd = d; best = g; } }
+    }
+    if (best === this.hot) return; this.hot = best; if (!best) return;
+    const c = best.canvas; c.classList.remove('wiggle'); void c.offsetWidth; c.classList.add('wiggle');
+  }
+}
+const load = id => fetch(id).then(r => r.json());
+const fontsReady = document.fonts ? document.fonts.load('600 26px Caveat') : Promise.resolve();
+
+/* ── Steps ── */
+const host = document.getElementById('steps');
+const sketches = [];
+STEPS.forEach((s, i) => {
+  const sec = document.createElement('section'); sec.className = 'step';
+  sec.innerHTML = `<div><div class="num">${String(i + 1).padStart(2, '0')}</div><h3>${s.title}</h3><p>${s.text}</p><div class="tools">${s.tools}</div></div><div class="fig"></div>`;
+  host.appendChild(sec);
+  const fig = sec.querySelector('.fig');
+  load(`steps/${s.id}.json`).then(d => { const sk = new Sketch(fig, d, s.labels, 1000 + i * 97); sk.fig = `fig. ${String(i + 1).padStart(2, '0')}`; sketches.push(sk); sk.layout(); io.observe(fig); fig._sk = sk; });
+});
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting && !e.target._sk.drawn) fontsReady.then(() => e.target._sk.draw());
+}), {threshold: .35});
+
+/* ── Hero ── */
+const hero = document.getElementById('hero'), cv = document.getElementById('frames'), cx = cv.getContext('2d');
+const paper = hero.querySelector('.paper'), heroFig = document.getElementById('heroSketch');
+const t1 = document.getElementById('t1'), t2 = document.getElementById('t2'), t3 = document.getElementById('t3'), cue = document.getElementById('cue');
+const imgs = Array.from({length: FRAME_COUNT}, (_, i) => { const im = new Image(); im.src = `frames/${String(i).padStart(4, '0')}.webp`; return im; });
+imgs[0].onload = () => render();
+let heroSketch = null, rect = {x: 0, y: 0, w: 0, h: 0}, cur = -1, snapped = false, lastY = scrollY;
+load('hero_lines.json').then(d => { heroSketch = new Sketch(heroFig, d, HERO_LABELS, 42); heroSketch.onComplete = () => { if (holding) endHold(); }; size(); });
+function size() {
+  const dpr = Math.min(2, devicePixelRatio || 1), W = innerWidth, H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const s = Math.min(W / FRAME_W, H * .92 / FRAME_H) * (W < 820 ? 1.25 : 1); rect = {w: FRAME_W * s, h: FRAME_H * s}; rect.x = (W - rect.w) / 2; rect.y = (H - rect.h) / 2 + H * .04;
+  Object.assign(heroFig.style, {left: rect.x + 'px', top: rect.y + 'px', width: rect.w + 'px', height: rect.h + 'px', aspectRatio: 'auto'});
+  heroSketch && heroSketch.layout(); sketches.forEach(s => s.layout()); cur = -1; render();
+}
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v || 0)), smooth = t => t * t * (3 - 2 * t);
+// First pass down: pause on the pencil sketch only while it draws (~1.3 s), then let go by itself.
+const HOLD_AT = .9; let lastRaw = null, holding = false, holdDone = false;
+const holdY = () => hero.offsetTop + (hero.offsetHeight - innerHeight) * HOLD_AT;
+const endHold = () => { holding = false; holdDone = true; };
+const upward = () => { holding = false; };                          // going back up is always free
+addEventListener('wheel', e => { if (!holding || e.ctrlKey) return; if (e.deltaY < 0) upward(); else e.preventDefault(); }, {passive: false});
+let touchY = null;
+addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, {passive: true});
+addEventListener('touchmove', e => {
+  if (!holding || touchY === null) return;
+  if (e.touches[0].clientY > touchY) upward(); else e.preventDefault();
+}, {passive: false});
+addEventListener('keydown', e => {
+  if (!holding) return;
+  if (['ArrowUp', 'PageUp', 'Home'].includes(e.key)) upward();
+  else if (['ArrowDown', 'PageDown', ' ', 'End'].includes(e.key)) e.preventDefault();
+});
+function render() {
+  const r = hero.getBoundingClientRect(), raw = -r.top / (r.height - innerHeight), p = clamp(raw);
+  const f = Math.round(smooth(clamp(p / .72)) * (FRAME_COUNT - 1));
+  const im = imgs[f];
+  if (f !== cur && im.complete && im.naturalWidth) {
+    const dpr = cv.width / innerWidth; cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, innerWidth, innerHeight);
+    cx.drawImage(im, rect.x, rect.y, rect.w, rect.h); cur = f;
+  }
+  t1.style.opacity = 1 - clamp(p / .12); t1.style.transform = `translateY(${-p * 120}px)`; cue.style.opacity = 1 - clamp(p / .05);
+  t2.style.opacity = clamp((p - .3) / .08) * (1 - clamp((p - .62) / .08));
+  // the photo-real parts shed their material and turn into a pencil drawing on paper
+  const s = smooth(clamp((p - .76) / .1));
+  cv.style.opacity = 1 - s; paper.style.opacity = s; t3.style.opacity = clamp((p - .84) / .06);
+  heroFig.style.pointerEvents = s > .5 ? 'auto' : 'none';
+  if (heroSketch) { if (p > .78 && !heroSketch.drawn) fontsReady.then(() => heroSketch.draw()); if (p < .7 && heroSketch.drawn) heroSketch.clear(); }
+  // once fully exploded, flip quickly to the first page of steps
+  const down = scrollY > lastY; lastY = scrollY;
+  const crossed = lastRaw !== null && lastRaw < HOLD_AT && raw >= HOLD_AT && raw < 1; lastRaw = raw;   // jumps past the hero (links, nav) don't pause
+  if (!holdDone && crossed && !holding && !(heroSketch && heroSketch.complete)) {
+    holding = true; setTimeout(endHold, 2000);   // safety cap: never pinned longer than this
+  }
+  if (holding && raw > HOLD_AT + .005) { scrollTo(0, holdY()); return; }   // pinned on the sketch
+  if (raw > .96 && raw < 1.05 && down && !snapped) { snapped = true; document.getElementById('steps').scrollIntoView({behavior: reduced ? 'auto' : 'smooth'}); }
+  if (p < .9) snapped = false;
+  const steps = document.querySelectorAll('.step'), last = steps[steps.length - 1];
+  const lastStop = last ? last.getBoundingClientRect().top + scrollY - (innerHeight - last.offsetHeight) / 2 : Infinity;
+  document.documentElement.classList.toggle('snap', !scrollingUp && raw > 1.02 && scrollY <= lastStop + 4);   // magnets only between the steps
+}
+addEventListener('scroll', () => requestAnimationFrame(render), {passive: true});
+
+/* ── Magnetic steps: going down, one wheel gesture = exactly one step; going up scrolls freely ── */
+let wheelLock = 0, wheelAcc = 0, scrollingUp = false;
+addEventListener('wheel', e => {
+  if (e.ctrlKey) return;                                   // keep pinch-zoom
+  if (e.deltaY < 0) { scrollingUp = true; document.documentElement.classList.remove('snap'); return; }
+  if (scrollingUp) { scrollingUp = false; render(); }       // magnets back on for the way down
+  if (!document.documentElement.classList.contains('snap')) return;   // hero scrubs freely
+  e.preventDefault();
+  if (performance.now() < wheelLock) return;
+  wheelAcc += e.deltaY; if (wheelAcc < 25) return;
+  wheelAcc = 0;
+  const stops = [hero.querySelector('.end'), document.querySelector('.intro'), ...document.querySelectorAll('.step'), document.getElementById('video')].map(el => {
+    const r = el.getBoundingClientRect(), centered = getComputedStyle(el).scrollSnapAlign.includes('center');
+    return r.top + scrollY - (centered ? (innerHeight - r.height) / 2 : 0);
+  });
+  const next = stops.find(y => y > scrollY + 5);
+  if (next !== undefined) scrollTo({top: next, behavior: reduced ? 'auto' : 'smooth'});
+  wheelLock = performance.now() + 750;   // ponytail: fixed lock; a long trackpad fling may advance twice
+}, {passive: false});
+addEventListener('resize', size);
+size();
+
+/* ── Top bar: jump to a section, highlight the one on screen ── */
+document.querySelectorAll('.nav a').forEach(a => a.addEventListener('click', e => {
+  e.preventDefault(); holdDone = true; holding = false; snapped = true;   // a deliberate jump skips the sketch pause
+  const el = document.querySelector(a.getAttribute('href'));
+  scrollTo({top: el.id === 'hero' ? 0 : el.getBoundingClientRect().top + scrollY - 48, behavior: reduced ? 'auto' : 'smooth'});
+  markNav(a.getAttribute('href')); navLock = performance.now() + 1500;   // keep the clicked link lit while we travel
+}));
+const navLinks = [...document.querySelectorAll('.nav .links a')];
+let navLock = 0;
+const markNav = href => navLinks.forEach(a => a.classList.toggle('on', a.getAttribute('href') === href));
+addEventListener('scroll', () => {   // the last section can't reach the top line; at the very bottom it is current
+  if (performance.now() > navLock && innerHeight + scrollY >= document.documentElement.scrollHeight - 2) markNav('#code');
+}, {passive: true});
+const spy = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting && performance.now() > navLock) markNav('#' + e.target.id);
+}), {rootMargin: '-20% 0px -75% 0px'});   // the section just under the bar is "current"
+['hero', 'steps', 'video', 'try', 'papers', 'code'].forEach(id => spy.observe(document.getElementById(id)));
+
+/* ── Publications: newest first. Copy the template for each paper (journal or conference proceedings).
+  {
+    title: 'Paper title',
+    authors: 'A. Author, B. Author, C. Author',
+    venue: 'Journal or conference name, 2027',
+    type: 'Journal',            // or 'Conference'
+    url: 'https://doi.org/…',   // optional
+    bibtex: `@article{key2027,
+  title   = {Paper title},
+  author  = {Author, A. and Author, B.},
+  journal = {Journal name},
+  year    = {2027}
+}`,                             // optional; enables the Cite button
+  },
+── */
+const PAPERS = [];
+document.getElementById('paperList').innerHTML = !PAPERS.length
+  ? '<article class="card paper"><h3>Coming soon</h3></article>'
+  : PAPERS.map((p, i) => `
+  <article class="card paper">
+    <h3>${p.title}</h3>
+    <div class="meta">${p.type ? `<span class="chip">${p.type}</span>` : ''}${[p.authors, p.venue].filter(Boolean).join(' · ')}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${p.url ? `<a class="btn" href="${p.url}">Paper</a>` : ''}
+      ${p.bibtex ? `<button class="btn" data-cite="${i}" aria-expanded="false">Cite</button>` : ''}
+    </div>
+    ${p.bibtex ? `<pre hidden id="bib${i}">${p.bibtex.replace(/</g, '&lt;')}</pre>` : ''}
+  </article>`).join('');
+document.getElementById('paperList').addEventListener('click', e => {
+  const b = e.target.closest('[data-cite]'); if (!b) return;
+  const pre = document.getElementById('bib' + b.dataset.cite), open = pre.hidden;
+  pre.hidden = !open; b.setAttribute('aria-expanded', open);
+  if (open && navigator.clipboard) navigator.clipboard.writeText(pre.textContent).then(() => { b.textContent = 'Cite · copied'; }, () => {});
+});
+
+/* ── Try it: rigid plate on four identical supports at (±A, ±A) ── */
+(() => {
+  const A = .08, HALF = .1524, BASE = .014, PLATE = .10, TOP = .108;   // drawing heights are stretched for clarity
+  const LEVER = .023;              // real height from the load cells to the plate surface (m)
+  const FS = .00035, RS = .0004;   // metres of arrow per newton (applied, reactions)
+  const cv = document.getElementById('demo'), x = cv.getContext('2d');
+  const st = {px: .04, py: -.03, fx: 0, fy: 0, w: 400, mode: 'move', show: {reactions: true, components: false, cop: false}};
+  const home = JSON.parse(JSON.stringify(st));
+  let K = 1, OX = 0, OY = 0, W = 0, H = 0, drag = false;
+  const P = (a, b, z) => [OX + K * (a - b) * .866, OY - K * ((a + b) * .5 + z)];
+  const unP = (X, Y, z) => { const u = (X - OX) / (K * .866), v = (OY - Y) / K - z; return [(2 * v + u) / 2, (2 * v - u) / 2]; };
+  // vertical reactions: equilibrium of forces and moments about the load-cell plane, plane-stays-flat split across four equal supports
+  const reactions = () => [[1, -1, 'front right'], [1, 1, 'back right'], [-1, 1, 'back left'], [-1, -1, 'front left']].map(([sx, sy, name]) => ({sx, sy, name,
+    r: st.w / 4 + sx * (st.w * st.px + st.fx * LEVER) / (4 * A) + sy * (st.w * st.py + st.fy * LEVER) / (4 * A)}));
+  function line(pts3, a = .75, w = 1.2, dash) {
+    const R = rng(11);
+    for (const s of pencil(pts3.map(q => P(...q)), 1, 2, a, w, R)) {
+      x.setLineDash(dash || []); x.strokeStyle = `rgba(${INK},${s.a})`; x.lineWidth = s.w; x.beginPath();
+      s.p.forEach((q, i) => i ? x.lineTo(...q) : x.moveTo(...q)); x.stroke();
+    }
+    x.setLineDash([]);
+  }
+  function arrow(from, to, a = .9, w = 1.6, dash) {
+    line([from, to], a, w, dash);
+    const [X1, Y1] = P(...from), [X2, Y2] = P(...to), L = Math.hypot(X2 - X1, Y2 - Y1); if (L < 4) return;
+    const ux = (X2 - X1) / L, uy = (Y2 - Y1) / L, h = 11;
+    x.strokeStyle = `rgba(${INK},${a})`; x.lineWidth = w; x.beginPath();
+    x.moveTo(X2 - h * (ux * .9 - uy * .45), Y2 - h * (uy * .9 + ux * .45)); x.lineTo(X2, Y2);
+    x.lineTo(X2 - h * (ux * .9 + uy * .45), Y2 - h * (uy * .9 - ux * .45)); x.stroke();
+  }
+  function box(h, z0, z1, a = .55) {
+    for (const z of [z0, z1]) line([[-h, -h, z], [h, -h, z], [h, h, z], [-h, h, z], [-h, -h, z]], a);
+    for (const [i, j] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) line([[i * h, j * h, z0], [i * h, j * h, z1]], a * .8);
+  }
+  function text(s, q, dx = 0, dy = 0, size = 22, a = .95) {
+    const [X, Y] = P(...q); x.font = `600 ${size}px Caveat, cursive`; x.fillStyle = `rgba(${INK},${a})`; x.textAlign = 'center'; x.fillText(s, X + dx, Y + dy);
+  }
+  function draw() {
+    const dpr = devicePixelRatio || 1; x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H); x.lineCap = x.lineJoin = 'round';
+    box(HALF, 0, BASE, .45);                                                   // base board
+    for (const [i, j] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {               // corner supports
+      const c = .022;
+      for (const [u, v] of [[-1, -1], [1, 1], [1, -1], [-1, 1]]) line([[i * A + u * c, j * A + v * c, BASE], [i * A + u * c, j * A + v * c, PLATE]], .4);
+    }
+    box(HALF, PLATE, TOP, .8);                                                 // top plate
+    const rs = reactions(), c = [st.px, st.py, TOP], tail = [st.px - st.fx * FS, st.py - st.fy * FS, TOP + st.w * FS];
+    if (st.show.reactions) for (const r of rs) {
+      const at = [r.sx * A, r.sy * A, -.006], end = [r.sx * A, r.sy * A, -.006 - Math.max(-.1, Math.min(.12, r.r * RS))];   // long arrows capped; the label has the number
+      arrow(end, at, .8, 1.4, r.r < 0 ? [4, 4] : null);
+      text(`${Math.round(r.r)} N`, r.r >= 0 ? end : at, 0, 18, 18);
+      if (st.show.components && (st.fx || st.fy)) arrow(at, [at[0] - st.fx / 4 * FS * 1.5, at[1] - st.fy / 4 * FS * 1.5, at[2]], .55, 1.1);
+    }
+    arrow(tail, c, .95, 2);                                                    // the push
+    text(`${Math.round(Math.hypot(st.w, st.fx, st.fy))} N`, tail, 0, -10, 22);
+    if (st.show.components) {
+      arrow([st.px, st.py, TOP + st.w * FS], c, .5, 1.1, [5, 4]); text(`Fz ${st.w}`, [st.px, st.py, TOP + st.w * FS * .5], 30, 0, 17, .7);
+      if (Math.round(st.fx)) { arrow([st.px - st.fx * FS, st.py, TOP], c, .5, 1.1, [5, 4]); text(`Fx ${Math.round(st.fx)}`, [st.px - st.fx * FS, st.py, TOP], 0, 16, 17, .7); }
+      if (Math.round(st.fy)) { arrow([st.px, st.py - st.fy * FS, TOP], c, .5, 1.1, [5, 4]); text(`Fy ${Math.round(st.fy)}`, [st.px, st.py - st.fy * FS, TOP], 0, 16, 17, .7); }
+    }
+    if (st.show.cop) {                                                        // where the load cells think you pressed
+      const cx = st.px + st.fx * LEVER / st.w, cy = st.py + st.fy * LEVER / st.w, ring = [];
+      for (let k = 0; k <= 24; k++) ring.push([cx + .012 * Math.cos(k / 24 * 6.283), cy + .012 * Math.sin(k / 24 * 6.283), TOP]);
+      line(ring, .9, 1.4); text('center of pressure', [cx, cy, TOP], 70, 4, 17);
+    }
+    const sum = rs.reduce((s, r) => s + r.r, 0);
+    document.getElementById('readout').innerHTML = rs.map(r => `${r.name}: <b>${Math.round(r.r)} N</b>${r.r < 0 ? ' (pulling)' : ''}`).join('<br>') +
+      `<br>Sum: <b>${Math.round(sum)} N</b> = your ${st.w} N push`;
+  }
+  function size() {
+    const dpr = devicePixelRatio || 1; W = cv.clientWidth; if (!W) return; H = Math.round(W * .95);
+    cv.style.height = H + 'px'; cv.width = W * dpr; cv.height = H * dpr; K = W * 1.05; OX = W / 2; OY = H * .6; draw();
+  }
+  const hit = e => { const r = cv.getBoundingClientRect(); return unP(e.clientX - r.left, e.clientY - r.top, TOP); };
+  function move(e) {
+    if (!drag) return; const [a, b] = hit(e);
+    if (st.mode === 'move') { st.px = Math.max(-HALF + .01, Math.min(HALF - .01, a)); st.py = Math.max(-HALF + .01, Math.min(HALF - .01, b)); }
+    else { let fx = (st.px - a) / FS, fy = (st.py - b) / FS; const m = Math.hypot(fx, fy), cap = st.w * .8; if (m > cap) { fx *= cap / m; fy *= cap / m; } st.fx = fx; st.fy = fy; }
+    draw();
+  }
+  cv.addEventListener('pointerdown', e => { drag = true; cv.setPointerCapture(e.pointerId); cv.classList.add('dragging'); move(e); });
+  cv.addEventListener('pointermove', move);
+  cv.addEventListener('pointerup', () => { drag = false; cv.classList.remove('dragging'); });
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+    st.mode = b.dataset.mode; document.querySelectorAll('[data-mode]').forEach(o => o.setAttribute('aria-pressed', o === b));
+  }));
+  document.querySelectorAll('[data-show]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.show; st.show[k] = !st.show[k]; b.setAttribute('aria-pressed', st.show[k]); draw();
+  }));
+  const wIn = document.getElementById('w');
+  wIn.addEventListener('input', () => { st.w = +wIn.value; document.getElementById('wval').textContent = st.w + ' N'; draw(); });
+  document.getElementById('reset').addEventListener('click', () => {
+    Object.assign(st, JSON.parse(JSON.stringify(home))); wIn.value = st.w; document.getElementById('wval').textContent = st.w + ' N';
+    document.querySelectorAll('[data-mode]').forEach(o => o.setAttribute('aria-pressed', o.dataset.mode === 'move'));
+    document.querySelectorAll('[data-show]').forEach(o => o.setAttribute('aria-pressed', st.show[o.dataset.show])); draw();
+  });
+  addEventListener('resize', size); fontsReady.then(size); size();
+})();
+
+/* ── Video player ── */
+if (YOUTUBE_ID) document.getElementById('player').innerHTML =
+  `<iframe src="https://www.youtube-nocookie.com/embed/${YOUTUBE_ID}?rel=0" title="ForceViz app demo" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe>`;
+</script>
+</body>
+</html>
